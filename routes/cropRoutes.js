@@ -68,7 +68,7 @@ router.post('/scan', protect, upload.single('image'), async (req, res) => {
 
     try {
       const mlResponse = await axios.post(
-        'http://localhost:5001/predict',
+        'https://gramseva-ml-service.onrender.com/predict',
         {
           image_url: uploadResult.secure_url,
           crop_type: req.body.cropType || 'tomato'
