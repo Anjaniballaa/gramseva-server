@@ -6,7 +6,7 @@ const HealthRecord = require('../models/HealthRecord');
 const FamilyCard = require('../models/FamilyCard');
 const CropReport = require('../models/CropReport');
 const { protect } = require('../middleware/authMiddleware');
-const Chat = require('../models/chat');
+const Chat = require('../models/Chat');
 
 
 // @route GET /api/chat/my — Get all chats for current user
