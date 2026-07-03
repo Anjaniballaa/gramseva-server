@@ -26,7 +26,28 @@ const upload = multer({
   }
 });
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`;
+// Try flash first, fall back to pro if 503
+const GEMINI_FLASH_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`;
+const GEMINI_PRO_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+const callGemini = async (body) => {
+  try {
+    const res = await axios.post(GEMINI_FLASH_URL, body, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 35000
+    });
+    return res;
+  } catch (e) {
+    if (e.response?.status === 503 || e.response?.status === 429) {
+      console.log('⚠️ Flash model busy, trying gemini-1.5-flash fallback...');
+      return await axios.post(GEMINI_PRO_URL, body, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 35000
+      });
+    }
+    throw e;
+  }
+};
 
 // ============================================
 // LANGUAGE HELPERS
@@ -75,12 +96,11 @@ async function detectWithCropHealth(imageBuffer, mimeType) {
     const base64Image = imageBuffer.toString('base64');
 
     const response = await axios.post(
-      'https://crop.kindwise.com/api/v1/identification?details=treatment,description,symptoms,severity,cause',
+      'https://crop.kindwise.com/api/v1/identification?details=treatment,description,symptoms,severity,cause&similar_images=true',
       {
         images: [`data:${mimeType};base64,${base64Image}`],
         latitude: 17.3850,
-        longitude: 78.4867,
-        similar_images: false
+        longitude: 78.4867
       },
       {
         headers: {
@@ -260,17 +280,7 @@ Respond ONLY in ${langName} language. Return ONLY valid JSON, no other text:
       generationConfig: { temperature: 0.1, maxOutputTokens: 800 }
     };
 
-    // If Gemini-only fallback, include image
-    if (!cropHealthResult || cropHealthResult.notPlant) {
-      requestBody.contents[0].parts.unshift({
-        inline_data: null // We use URL reference in prompt
-      });
-    }
-
-    const response = await axios.post(GEMINI_URL, requestBody, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 30000
-    });
+    const response = await callGemini(requestBody);
 
     if (response.status !== 200) {
       console.log('Gemini bad status:', response.status);
@@ -335,27 +345,20 @@ If not a crop image:
   "error_message": "explanation that this is not a crop image"
 }`;
 
-    const response = await axios.post(
-      GEMINI_URL,
-      {
-        contents: [{
-          parts: [
-            {
-              inline_data: {
-                mime_type: mimeType,
-                data: base64Image
-              }
-            },
-            { text: prompt }
-          ]
-        }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 800 }
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 35000
-      }
-    );
+    const response = await callGemini({
+      contents: [{
+        parts: [
+          {
+            inline_data: {
+              mime_type: mimeType,
+              data: base64Image
+            }
+          },
+          { text: prompt }
+        ]
+      }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 800 }
+    });
 
     let text = response.data.candidates[0].content.parts[0].text.trim();
 
