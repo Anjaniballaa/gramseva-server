@@ -10,6 +10,10 @@ const cropReportSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  cropType: {
+    type: String,
+    default: 'Unknown'
+  },
   diseaseName: {
     type: String,
     required: true
@@ -19,14 +23,10 @@ const cropReportSchema = new mongoose.Schema({
     enum: ['Healthy', 'Mild', 'Moderate', 'Severe'],
     required: true
   },
-  cropType: {
-    type: String,
-    default: ''
-  },
   treatment: {
-    organic: String,
-    chemical: String,
-    dosage: String
+    organic: { type: String, default: '' },
+    chemical: { type: String, default: '' },
+    prevention: { type: String, default: '' }
   },
   village: {
     type: String,
@@ -35,6 +35,10 @@ const cropReportSchema = new mongoose.Schema({
   sharedToCommunity: {
     type: Boolean,
     default: false
+  },
+  language: {
+    type: String,
+    default: 'en'
   }
 }, { timestamps: true });
 
