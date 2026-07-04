@@ -6,6 +6,8 @@ const healthRecordSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+
+  // Patient details
   familyMemberName: {
     type: String,
     required: true
@@ -14,6 +16,18 @@ const healthRecordSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  ageGroup: {
+    type: String,
+    enum: ['child', 'adult', 'elderly'],
+    default: 'adult'
+  },
+  gender: {
+    type: String,
+    enum: ['Male', 'Female', 'Other'],
+    default: 'Male'
+  },
+
+  // Symptoms
   symptoms: [{
     type: String
   }],
@@ -22,11 +36,25 @@ const healthRecordSchema = new mongoose.Schema({
     enum: ['today', '2-3days', '1week+'],
     required: true
   },
+  additionalInfo: {
+    type: String,
+    default: ''
+  },
+
+  // AI Analysis result — stored as JSON string
+  analysis: {
+    type: String,
+    default: ''
+  },
+
+  // Severity
   severityLevel: {
     type: String,
     enum: ['Green', 'Yellow', 'Red'],
     required: true
   },
+
+  // Status updated by field officer / health worker
   status: {
     type: String,
     enum: ['pending', 'visited', 'advised', 'referred', 'resolved'],
@@ -36,10 +64,19 @@ const healthRecordSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+
+  // Location
   village: {
     type: String,
     required: true
+  },
+
+  // Language used for analysis
+  language: {
+    type: String,
+    default: 'en'
   }
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('HealthRecord', healthRecordSchema);
