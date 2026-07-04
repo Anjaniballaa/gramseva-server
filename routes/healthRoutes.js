@@ -9,9 +9,12 @@ const { protect } = require('../middleware/authMiddleware');
 // GEMINI SETUP WITH FALLBACK
 // ============================================
 const GEMINI_FLASH_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`;
-const GEMINI_PRO_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+const GEMINI_PRO_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const callGemini = async (body) => {
+  // Try primary model first
   try {
     const res = await axios.post(GEMINI_FLASH_URL, body, {
       headers: { 'Content-Type': 'application/json' },
@@ -19,12 +22,23 @@ const callGemini = async (body) => {
     });
     return res;
   } catch (e) {
-    if (e.response?.status === 503 || e.response?.status === 429) {
-      console.log('⚠️ Flash busy, trying gemini-1.5-flash...');
-      return await axios.post(GEMINI_PRO_URL, body, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 30000
-      });
+    const status = e.response?.status;
+    console.log(`⚠️ Primary Gemini failed (${status}), trying fallback...`);
+
+    if (status === 503 || status === 429 || status === 404 || status === 500) {
+      // Wait 1 second then try fallback model
+      await sleep(1000);
+      try {
+        const res2 = await axios.post(GEMINI_PRO_URL, body, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 30000
+        });
+        console.log('✅ Fallback model succeeded');
+        return res2;
+      } catch (e2) {
+        console.log(`❌ Fallback also failed: ${e2.response?.status} ${e2.message}`);
+        throw e2;
+      }
     }
     throw e;
   }
